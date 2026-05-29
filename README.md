@@ -112,8 +112,15 @@ Always configure these environment variables on your production server:
 Prisma 7 uses optimized driver adapters to talk to production databases securely.
 When running with a PostgreSQL database:
 
-1. Update your backend `.env` configuration to use your PostgreSQL URI:
+The database engine is selected at deploy time via the `DB_PROVIDER` env var.
+It defaults to `sqlite` (local dev); set it to `postgresql` for production. The
+data model lives in a single source of truth (`prisma/schema.prisma`); the
+PostgreSQL schema (`prisma/schema.postgres.prisma`) and its migrations
+(`prisma/migrations-postgres/`) are kept in sync from it automatically.
+
+1. Update your backend `.env` configuration to use your PostgreSQL URI and engine:
    ```env
+   DB_PROVIDER="postgresql"
    DATABASE_URL="postgresql://esg_user:secure_password@postgres-db-host:5432/esg_regulator?schema=public"
    ```
 2. Install the necessary runtime packages inside the backend folder:
@@ -122,17 +129,24 @@ When running with a PostgreSQL database:
    npm install @prisma/adapter-pg pg
    npm install --save-dev @types/pg
    ```
-3. Run the migrations, generate the client typings, and seed the production database:
+3. Generate the client, apply migrations, and seed the production database in one step:
    ```bash
-   # Push schema migrations securely to the database
-   npx prisma migrate deploy
-
-   # Generate local Prisma Client typings
-   npx prisma generate
-
-   # Populate the database with standard regulations catalog & profiles
-   npx prisma db seed
+   # Sync the pg schema, generate the client, migrate deploy, and seed
+   npm run db:setup:pg
    ```
+   …or run the individual steps:
+   ```bash
+   npm run db:generate:pg   # sync pg schema + generate Prisma Client
+   npm run db:deploy:pg     # apply migrations to the PostgreSQL database
+   npm run db:seed:pg       # populate regulations catalogue & sandbox companies
+   ```
+
+> **Note:** Whenever you change `prisma/schema.prisma`, regenerate the PostgreSQL
+> schema and create a matching migration:
+> ```bash
+> npm run db:pg:sync       # regenerate prisma/schema.postgres.prisma
+> DB_PROVIDER=postgresql npx prisma migrate dev --name <change>   # against a Postgres dev DB
+> ```
 
 ---
 
@@ -216,12 +230,13 @@ services:
       - "3000:3000"
     environment:
       PORT: 3000
+      DB_PROVIDER: "postgresql"
       DATABASE_URL: "postgresql://esg_user:secure_password@postgres:5432/esg_regulator?schema=public"
     depends_on:
       postgres:
         condition: service_healthy
     command: >
-      sh -c "npx prisma migrate deploy && npx prisma db seed && npm run start:prod"
+      sh -c "npm run db:deploy:pg && npm run db:seed:pg && npm run start:prod"
 
   frontend:
     build:

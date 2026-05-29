@@ -68,13 +68,16 @@ DATABASE_URL="file:./dev.db"
 ```
 
 ### 3. Database Migrations & Seeding
-Set up your SQLite database, apply schema migrations, and seed the regulations catalogue and sandbox companies:
+Set up your SQLite database, apply schema migrations, generate the client typings, and seed the regulations catalogue and sandbox companies:
 ```bash
 # Move to the backend folder
 cd backend
 
 # Run Prisma migrations to initialize dev.db
 npx prisma migrate dev --name init
+
+# Generate local Prisma Client typings
+npx prisma generate
 
 # Seed the database from local JSON catalogues
 npx prisma db seed
@@ -119,10 +122,13 @@ When running with a PostgreSQL database:
    npm install @prisma/adapter-pg pg
    npm install --save-dev @types/pg
    ```
-3. Run the migrations and seed the production database:
+3. Run the migrations, generate the client typings, and seed the production database:
    ```bash
    # Push schema migrations securely to the database
    npx prisma migrate deploy
+
+   # Generate local Prisma Client typings
+   npx prisma generate
 
    # Populate the database with standard regulations catalog & profiles
    npx prisma db seed
